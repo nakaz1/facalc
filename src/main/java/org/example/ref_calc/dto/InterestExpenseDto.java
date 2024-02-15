@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Getter
@@ -14,6 +15,6 @@ import java.time.LocalDate;
 public class InterestExpenseDto {
 
     private LocalDate date;
-    private double interestExpense;
-    private int daysInMonth;
+    private BigDecimal interestExpense;
+    private int days;
 }

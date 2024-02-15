@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Getter
@@ -13,9 +14,5 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class LiabilityDto {
     private LocalDate date;
-    private double liability;
-
-    public LiabilityDto(double liability) {
-        this.liability = liability;
-    }
+    private BigDecimal liability;
 }

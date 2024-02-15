@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Getter
@@ -13,5 +14,5 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class PaymentDto {
     private LocalDate date;
-    private double amount;
+    private BigDecimal amount;
 }
