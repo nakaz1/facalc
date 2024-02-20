@@ -2,7 +2,7 @@ package org.example.ref_calc.service.impl;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.ref_calc.dto.PaymentDto;
-import org.example.ref_calc.service.PaymentCalculationService;
+import org.example.ref_calc.service.PaymentCalculationServiceV2;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -13,7 +13,7 @@ import java.util.List;
 
 @Service
 @Slf4j
-public class PaymentCalculationServiceImpl implements PaymentCalculationService {
+public class PaymentCalculationServiceImplV2 implements PaymentCalculationServiceV2 {
     @Override
     public List<PaymentDto> calculatePayments(LocalDate startDate, LocalDate endDate, BigDecimal interestRate, Double amount, LocalDate paymentDate) {
         log.info("Attempt to calculate AFPP");

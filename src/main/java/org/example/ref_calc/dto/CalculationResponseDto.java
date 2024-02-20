@@ -12,5 +12,4 @@ public class CalculationResponseDto {
     private BigDecimal liability;
     private List<PaymentDto> payments;
     private List<InterestExpenseDto> interestExpenses;
-//    private List<LiabilityDto> liabilities;
 }
