@@ -9,7 +9,8 @@ import java.util.List;
 @Getter
 @Setter
 public class CalculationResponseDto {
-    private BigDecimal liability;
+    private BigDecimal afpp;
     private List<PaymentDto> payments;
     private List<InterestExpenseDto> interestExpenses;
+    private CalculationDtoV2 calculations;
 }

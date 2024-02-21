@@ -6,17 +6,15 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class InterestExpenseDto {
-
-    private LocalDate date;
-    private BigDecimal interestExpense;
-    private int days;
-    private BigDecimal amr;
-    private Double amount;
+public class CalculationDtoV2 {
+    private List<InterestExpenseDto> interestExpenses;
+    private BigDecimal sumOfAmrs;
+    private BigDecimal sumOfPerDay;
+    private BigDecimal sumOfPerMonth;
 }
