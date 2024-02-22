@@ -1,4 +1,4 @@
-package org.example.ref_calc.dto;
+package org.example.ref_calc.dto.sap;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,7 +12,7 @@ import java.time.LocalDate;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class PaymentDto {
+public class AmrDto {
+    private BigDecimal sumAmr;
     private LocalDate date;
-    private BigDecimal amount;
 }

@@ -1,8 +1,7 @@
-package org.example.ref_calc.service.impl;
+package org.example.ref_calc.service.excel;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.ref_calc.dto.PaymentDto;
-import org.example.ref_calc.service.PaymentCalculationServiceV2;
+import org.example.ref_calc.dto.excel.PaymentDto;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -13,7 +12,7 @@ import java.util.List;
 
 @Service
 @Slf4j
-public class PaymentCalculationServiceImplV2 implements PaymentCalculationServiceV2 {
+public class PaymentCalculationServiceImpl implements PaymentCalculationService {
     @Override
     public List<PaymentDto> calculatePayments(LocalDate startDate, LocalDate endDate, BigDecimal interestRate, Double amount, LocalDate paymentDate) {
         log.info("Attempt to calculate AFPP");
@@ -34,25 +33,18 @@ public class PaymentCalculationServiceImplV2 implements PaymentCalculationServic
                     amount = amount / endDate.lengthOfMonth();
                     double powForMonth = (double) ChronoUnit.DAYS.between(startDate, currentDate) / paymentDate.lengthOfYear();
                     double finalPayment = amount / Math.pow(1 + interestRate.doubleValue(), powForMonth);
-//                    PaymentDto payment = new PaymentDto(currentDate, BigDecimal.valueOf(paymentAmount));
                     payments.add(new PaymentDto(currentDate, BigDecimal.valueOf(finalPayment)));
                     break;
                 }
+
                 // Расчет платежа на текущую дату
                 double powForMonth = (double) ChronoUnit.DAYS.between(startDate, currentDate) / paymentDate.lengthOfYear();
                 double paymentAmount = amount / Math.pow(1 + interestRate.doubleValue(), powForMonth);
-//                PaymentDto payment = new PaymentDto(currentDate, BigDecimal.valueOf(paymentAmount));
                 payments.add(new PaymentDto(currentDate, BigDecimal.valueOf(paymentAmount)));
 
                 // Переход к следующему месяцу
                 currentDate = currentDate.plusMonths(1);
             }
-
-            // Расчет платежа на последний день периода
-//            double finalPayment = amount / endDate.lengthOfMonth();
-//            PaymentDto finalPaymentObj = new PaymentDto(endDate, BigDecimal.valueOf(finalPayment));
-//            payments.add(finalPaymentObj);
-
 
             BigDecimal totalPayment = payments.stream().map(PaymentDto::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
             var roundValue = (double) Math.round(totalPayment.doubleValue() * 100.0) / 100;

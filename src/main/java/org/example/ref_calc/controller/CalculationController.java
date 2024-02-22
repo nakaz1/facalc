@@ -2,17 +2,24 @@ package org.example.ref_calc.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.ref_calc.dto.CalculationDtoV2;
 import org.example.ref_calc.dto.CalculationRequestDto;
-import org.example.ref_calc.dto.CalculationResponseDto;
 import org.example.ref_calc.dto.LiabilityDto;
-import org.example.ref_calc.dto.PaymentDto;
-import org.example.ref_calc.service.InterestExpenseCalculationServiceV2;
-import org.example.ref_calc.service.LiabilityCalculationService;
-import org.example.ref_calc.service.LiabilityCalculationServiceV2;
-import org.example.ref_calc.service.PaymentCalculationService;
-import org.example.ref_calc.service.PaymentCalculationServiceV2;
+import org.example.ref_calc.dto.excel.ExcelCalculationResponseDto;
+import org.example.ref_calc.dto.excel.InterestExpenseDto;
+import org.example.ref_calc.dto.excel.PaymentDto;
+import org.example.ref_calc.dto.sap.CalculationsSapDto;
+import org.example.ref_calc.dto.sap.SapAfppDto;
+import org.example.ref_calc.dto.sap.SapCalculationResponseDto;
+import org.example.ref_calc.service.excel.InterestExpenseCalculationService;
+import org.example.ref_calc.service.excel.LiabilityCalculationService;
+import org.example.ref_calc.service.excel.PaymentCalculationService;
+import org.example.ref_calc.service.sap.InterestExpenseCalculationServiceV2;
+import org.example.ref_calc.service.sap.LiabilityCalculationServiceV2;
+import org.example.ref_calc.service.sap.PaymentCalculationServiceV2;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,15 +36,15 @@ public class CalculationController {
 
     private final PaymentCalculationService paymentCalculationService;
     private final LiabilityCalculationService liabilityCalculationService;
-//    private final InterestExpenseCalculationService interestExpenseCalculationService;
+    private final InterestExpenseCalculationService interestExpenseCalculationService;
 
     private final PaymentCalculationServiceV2 paymentCalculationServiceV2;
     private final LiabilityCalculationServiceV2 liabilityCalculationServiceV2;
     private final InterestExpenseCalculationServiceV2 interestExpenseCalculationServiceV2;
 
 
-    @PostMapping("/calculate1.0")
-    public ResponseEntity<CalculationResponseDto> calculate(@RequestBody CalculationRequestDto request) {
+    @PostMapping("/calculate-excel")
+    public ResponseEntity<ExcelCalculationResponseDto> calculateExcel(@RequestBody CalculationRequestDto request) {
 
         // Расчет АФПП
         List<PaymentDto> payments = paymentCalculationService.calculatePayments(request.getBeginDate(), request.getEndDate(), request.getInterestRate(), request.getAmount(), request.getPaymentDate());
@@ -47,34 +54,45 @@ public class CalculationController {
         var liability = liabilities.get(0).getLiability().setScale(2, RoundingMode.HALF_UP);
 
         // Расчет процентные расходы
-//        List<InterestExpenseDto> interestExpenses = interestExpenseCalculationService.calculateInterestExpenses(payments, request.getInterestRate(), liabilities);
+        List<InterestExpenseDto> interestExpenses = interestExpenseCalculationService.calculateInterestExpensesExcel(payments, request.getInterestRate(), liabilities);
 
-        CalculationResponseDto calculationResponseDto = new CalculationResponseDto();
+        ExcelCalculationResponseDto calculationResponseDto = new ExcelCalculationResponseDto();
         calculationResponseDto.setPayments(payments);
         calculationResponseDto.setAfpp(liability);
-//        calculationResponseDto.setInterestExpenses(interestExpenses);
+        calculationResponseDto.setInterestExpenses(interestExpenses);
 
         return ResponseEntity.ok(calculationResponseDto);
     }
 
-    @PostMapping("/calculate2.0")
-    public ResponseEntity<CalculationResponseDto> calculateV2(@RequestBody CalculationRequestDto request) {
+    @PostMapping("/calculate-sap")
+    public ResponseEntity<?> calculateSap(@Validated @RequestBody CalculationRequestDto request, BindingResult result) {
 
-        // Расчет АФПП
-        List<PaymentDto> payments = paymentCalculationServiceV2.calculatePayments(request.getBeginDate(), request.getEndDate(), request.getInterestRate(), request.getAmount(), request.getPaymentDate());
+        if (result.hasErrors()) {
+            return ResponseEntity.badRequest().body("Invalid request");
+        }
 
-        // Расчет обязательств
-        List<LiabilityDto> liabilities = liabilityCalculationServiceV2.calculateLiabilities(payments);
-        var afpp = liabilities.get(0).getLiability().setScale(2, RoundingMode.HALF_UP);
+        try {
+            //Расчет АФПП помесячно
+            List<SapAfppDto> payments = paymentCalculationServiceV2.calculatePayments(request.getBeginDate(), request.getEndDate(), request.getInterestRate(), request.getAmount(), request.getPaymentDate());
 
-        CalculationDtoV2 calculations = interestExpenseCalculationServiceV2.calculateInterestExpenses(payments, request.getInterestRate(), liabilities, request.getAmount(), request.getBeginDate(), request.getEndDate());
+            // Сумма актива помесячно
+            List<LiabilityDto> liabilities = liabilityCalculationServiceV2.calculateLiabilities(payments);
 
-        //Расчет процентов и амортизации
-        CalculationResponseDto resp = new CalculationResponseDto();
-        resp.setAfpp(afpp);
-        resp.setCalculations(calculations);
+            // Общая сумма актива на основе АФПП
+            var afpp = liabilities.get(0).getLiability().setScale(2, RoundingMode.HALF_UP);
 
+            //Расчет амортизации и процентов (день, месяц)
+            CalculationsSapDto calculations = interestExpenseCalculationServiceV2.calculateInterestExpensesSap(payments, request.getInterestRate(), liabilities, request.getAmount(), request.getBeginDate(), request.getEndDate());
 
-        return ResponseEntity.ok(resp);
+            SapCalculationResponseDto resp = new SapCalculationResponseDto();
+            resp.setAfpp(afpp);
+            resp.setCalculations(calculations);
+
+            return ResponseEntity.ok(resp);
+
+        } catch (Exception e) {
+            // Логирование ошибки
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred during calculation.");
+        }
     }
 }

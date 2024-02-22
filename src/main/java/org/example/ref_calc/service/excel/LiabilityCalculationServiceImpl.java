@@ -1,9 +1,8 @@
-package org.example.ref_calc.service.impl;
+package org.example.ref_calc.service.excel;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.ref_calc.dto.LiabilityDto;
-import org.example.ref_calc.dto.PaymentDto;
-import org.example.ref_calc.service.LiabilityCalculationService;
+import org.example.ref_calc.dto.excel.PaymentDto;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -27,7 +26,6 @@ public class LiabilityCalculationServiceImpl implements LiabilityCalculationServ
             liabilities.add(new LiabilityDto(beginDateLiability, totalPayments));
 
             for (int i = 1; i < payments.size(); i++) {
-//                double currentLiability = totalPayments - payments.subList(0, i + 1).stream().mapToDouble(PaymentDto::getAmount).sum();
                 BigDecimal currentLiability = totalPayments.subtract(payments.subList(0, i + 1)
                         .stream()
                         .map(PaymentDto::getAmount)

@@ -1,4 +1,4 @@
-package org.example.ref_calc.dto;
+package org.example.ref_calc.dto.excel;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -8,9 +8,8 @@ import java.util.List;
 
 @Getter
 @Setter
-public class CalculationResponseDto {
+public class ExcelCalculationResponseDto {
     private BigDecimal afpp;
     private List<PaymentDto> payments;
     private List<InterestExpenseDto> interestExpenses;
-    private CalculationDtoV2 calculations;
 }

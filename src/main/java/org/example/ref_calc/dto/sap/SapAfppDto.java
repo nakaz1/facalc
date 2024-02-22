@@ -1,4 +1,4 @@
-package org.example.ref_calc.dto;
+package org.example.ref_calc.dto.sap;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,11 +12,7 @@ import java.time.LocalDate;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class InterestExpenseDto {
-
+public class SapAfppDto {
     private LocalDate date;
-    private BigDecimal interestExpense;
-    private int days;
-    private BigDecimal amr;
-    private Double amount;
+    private BigDecimal amount;
 }

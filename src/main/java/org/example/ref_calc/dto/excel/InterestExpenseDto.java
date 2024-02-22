@@ -1,4 +1,4 @@
-package org.example.ref_calc.dto;
+package org.example.ref_calc.dto.excel;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,7 +12,9 @@ import java.time.LocalDate;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class AmrDto {
-    private BigDecimal sumAmr;
+public class InterestExpenseDto {
+
     private LocalDate date;
+    private BigDecimal interestExpense;
+    private int days;
 }
