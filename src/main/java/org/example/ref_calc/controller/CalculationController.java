@@ -14,7 +14,6 @@ import org.example.ref_calc.service.excel.InterestExpenseCalculationService;
 import org.example.ref_calc.service.excel.LiabilityCalculationService;
 import org.example.ref_calc.service.excel.PaymentCalculationService;
 import org.example.ref_calc.service.sap.InterestExpenseCalculationServiceV2;
-import org.example.ref_calc.service.sap.LiabilityCalculationServiceV2;
 import org.example.ref_calc.service.sap.PaymentCalculationServiceV2;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 
@@ -39,9 +39,10 @@ public class CalculationController {
     private final InterestExpenseCalculationService interestExpenseCalculationService;
 
     private final PaymentCalculationServiceV2 paymentCalculationServiceV2;
-    private final LiabilityCalculationServiceV2 liabilityCalculationServiceV2;
     private final InterestExpenseCalculationServiceV2 interestExpenseCalculationServiceV2;
 
+    private static final BigDecimal x1 = BigDecimal.valueOf(100001.00);
+    private static final BigDecimal x2 = BigDecimal.valueOf(100000.00);
 
     @PostMapping("/calculate-excel")
     public ResponseEntity<ExcelCalculationResponseDto> calculateExcel(@RequestBody CalculationRequestDto request) {
@@ -75,14 +76,15 @@ public class CalculationController {
             //Расчет АФПП помесячно
             List<SapAfppDto> payments = paymentCalculationServiceV2.calculatePayments(request.getBeginDate(), request.getEndDate(), request.getInterestRate(), request.getAmount(), request.getPaymentDate());
 
-            // Сумма актива помесячно
-            List<LiabilityDto> liabilities = liabilityCalculationServiceV2.calculateLiabilities(payments);
+            //Расчет амортизации и процентов с начальными константами для расчета актива через метод хорд
+            CalculationsSapDto calculationsConstantX1 = interestExpenseCalculationServiceV2.calculateInterestExpensesSap(payments, request.getInterestRate(), request.getAmount(), request.getBeginDate(), request.getEndDate(), x1);
 
-            // Общая сумма актива на основе АФПП
-            var afpp = liabilities.get(0).getLiability().setScale(2, RoundingMode.HALF_UP);
+            CalculationsSapDto calculationsConstantX2 = interestExpenseCalculationServiceV2.calculateInterestExpensesSap(payments, request.getInterestRate(), request.getAmount(), request.getBeginDate(), request.getEndDate(), x2);
 
-            //Расчет амортизации и процентов (день, месяц)
-            CalculationsSapDto calculations = interestExpenseCalculationServiceV2.calculateInterestExpensesSap(payments, request.getInterestRate(), liabilities, request.getAmount(), request.getBeginDate(), request.getEndDate());
+            //Расчет актива на основе метода хорд
+            var afpp = interestExpenseCalculationServiceV2.methodHord(calculationsConstantX1, calculationsConstantX2, x1, x2);
+
+            CalculationsSapDto calculations = interestExpenseCalculationServiceV2.calculateInterestExpensesSap(payments, request.getInterestRate(), request.getAmount(), request.getBeginDate(), request.getEndDate(), afpp);
 
             SapCalculationResponseDto resp = new SapCalculationResponseDto();
             resp.setAfpp(afpp);
@@ -92,7 +94,7 @@ public class CalculationController {
 
         } catch (Exception e) {
             // Логирование ошибки
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred during calculation.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred during calculation");
         }
     }
 }
