@@ -6,6 +6,7 @@ import org.example.ref_calc.dto.sap.AmrDto;
 import org.example.ref_calc.dto.sap.CalculationsSapDto;
 import org.example.ref_calc.dto.sap.SapAfppDto;
 import org.example.ref_calc.dto.sap.SapInterestExpenseDto;
+import org.example.ref_calc.dto.sap.SapLiabilityDto;
 import org.example.ref_calc.service.sap.InterestExpenseCalculationServiceV2;
 import org.springframework.stereotype.Service;
 
@@ -21,35 +22,54 @@ public class InterestExpenseCalculationServiceImplv2 implements InterestExpenseC
 
     private static final int DAYS_OF_YEAR = 366;
 
+    private static final BigDecimal x1 = BigDecimal.valueOf(100001.00);
+    private static final BigDecimal x2 = BigDecimal.valueOf(100000.00);
+
     @Override
     public CalculationsSapDto calculateInterestExpensesSap(List<SapAfppDto> payments, BigDecimal interestRate, List<LiabilityDto> liabilities, Double amount, LocalDate beginDate, LocalDate endDate) {
         log.info("Attempt to calculate interest expense");
         List<SapInterestExpenseDto> interestExpenses = new ArrayList<>();
         List<AmrDto> amortizations = new ArrayList<>();
-        var sumLiabilities = liabilities.get(0).getLiability().setScale(2, RoundingMode.HALF_UP); //Сумма актива (АФПП)
-        BigDecimal sum;
+        List<SapLiabilityDto> liabilityResult = new ArrayList<>();
+//        var sumLiabilities = liabilities.get(0).getLiability().setScale(2, RoundingMode.HALF_UP); //Сумма актива (АФПП)
+        BigDecimal sumLiabilities = x2; //Сумма актива (АФПП)
+        BigDecimal sumAmrs;
         BigDecimal sumPerDay;
         BigDecimal sumPerMonth;
-
+        testC();
         for (SapAfppDto payment : payments) {
             var daysOfMonth = payment.getDate().lengthOfMonth() - 1;
             var firstDayInMonth = payment.getDate().lengthOfMonth() - daysOfMonth;
+            var multiplyPercent = interestRate.multiply(BigDecimal.valueOf(100));
+
 
             // Если дата платежа равна дате окончания дог отношений, платеж рассчитывается за 1 день
             if (payment.getDate().equals(endDate)) {
                 amount = amount / payment.getDate().lengthOfMonth();
+                amount = Math.round(amount * 100.0) / 100.0;
             }
 
             // Сумма процентов за 1-е число месяца
             BigDecimal sumOfInterestDay = calculatePerDay(sumLiabilities, interestRate, firstDayInMonth);
 
-            interestExpenses.add(new SapInterestExpenseDto(payment.getDate().withDayOfMonth(1), sumOfInterestDay.setScale(2, RoundingMode.HALF_UP), firstDayInMonth, BigDecimal.valueOf(0), amount));
+            interestExpenses.add(new SapInterestExpenseDto(payment.getDate().withDayOfMonth(1), sumOfInterestDay, firstDayInMonth, BigDecimal.valueOf(0), amount));
 
             // Расчет амортизации и процентов с начала срока исполнения
             if (payment.getDate().equals(beginDate)) {
                 var amr = calculateAmr(amount, sumOfInterestDay);
+
                 amortizations.add(new AmrDto(amr, payment.getDate()));
-                sumLiabilities = sumLiabilities.subtract(amr);
+//                sumLiabilities = sumLiabilities.subtract(amr);
+
+                sumLiabilities = x2.subtract(payment.getAmount()
+                        .subtract(x2.multiply(multiplyPercent)
+                                .divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP)
+                                .divide(BigDecimal.valueOf(DAYS_OF_YEAR), 10, RoundingMode.HALF_UP)));
+
+                liabilityResult.add(new SapLiabilityDto(payment.getDate(), sumLiabilities));
+
+                //Остаточная стоимость в M = J2 - (E2-J2*G2/100/H2)
+                //100001 - (103.00 - 100001 * 8.198765 / 100 / 366) = 99920.4012212777
 
                 // Сумма процентов за первый месяц
                 BigDecimal sumOfInterestMonth = calculatePerMonth(sumLiabilities, interestRate, daysOfMonth);
@@ -63,8 +83,14 @@ public class InterestExpenseCalculationServiceImplv2 implements InterestExpenseC
                 // Последующие расчеты амортизации и процентов на основе процентов за прошлые месяца
             } else {
                 var amr = calculateNewDataFromPreviousMonth(interestExpenses, amount, sumOfInterestDay);
+
                 amortizations.add(new AmrDto(amr, payment.getDate()));
+
+                //остаточная стоимость - амортизация
                 sumLiabilities = sumLiabilities.subtract(amr);
+
+                liabilityResult.add(new SapLiabilityDto(payment.getDate(), sumLiabilities));
+
                 BigDecimal sumOfInterestMonth = calculatePerMonth(sumLiabilities, interestRate, daysOfMonth);
 
                 interestExpenses.add(new SapInterestExpenseDto(payment.getDate().withDayOfMonth(daysOfMonth + 1),
@@ -76,15 +102,31 @@ public class InterestExpenseCalculationServiceImplv2 implements InterestExpenseC
         }
 
         //Общая сумма амортизации за весь срок исполнения
-        sum = sumOfMonthAmr(amortizations);
+        sumAmrs = sumOfMonthAmr(amortizations);
         //Общая сумма процентов за 1 день всего срока исполнения
         sumPerDay = sumOfPerDay(interestExpenses);
         //Сумма процентов со 2 числа по конец месяца
         sumPerMonth = sumOfPerMonth(interestExpenses);
 
+        var sumLia = liabilityResult.stream()
+                .reduce((first, second) -> second)
+                .map(x -> x.getLiability())
+                .orElseThrow();
+
+        var sumRound = sumLia.setScale(10, RoundingMode.HALF_UP);
+
+        var tmp2 = 100001 - (103.00 - 100001 * 8.19876550000 / 100 / 366);
+
+        var hord = 100000 - 115055.1644230460 * (100000 - 100001) / (115055.1644230460 - 115056.3419528080);//2291.0773590885656
+        var java = 100000 - 115055.1644230461 * (100000 - 100001) / (115055.1644230461 - 115056.3419528082);//2291.0773675409
+
         log.info("Calculation of interest expenses was successful");
 
-        return new CalculationsSapDto(interestExpenses, sum, sumPerDay, sumPerMonth);
+        return new CalculationsSapDto(interestExpenses, sumAmrs, sumPerDay, sumPerMonth);
+    }
+
+    private void testC() {
+
     }
 
     private BigDecimal calculateNewDataFromPreviousMonth(List<SapInterestExpenseDto> interestExpenses, Double amount, BigDecimal sumOfInterestDay) {
@@ -94,22 +136,22 @@ public class InterestExpenseCalculationServiceImplv2 implements InterestExpenseC
                 amr = BigDecimal.valueOf(amount).subtract(expense.getInterestExpense()).subtract(sumOfInterestDay);
             }
         }
-        return amr.setScale(2, RoundingMode.HALF_UP);
+        return amr;
     }
 
     private BigDecimal calculateAmr(Double amount, BigDecimal sumOfInterestDay) {
         var amr = BigDecimal.valueOf(amount).subtract(sumOfInterestDay);
-        return amr.setScale(2, RoundingMode.HALF_UP);
+        return amr;
     }
 
-    private BigDecimal sumOfPerMonth(List<SapInterestExpenseDto> interestExpenses) {
+    private BigDecimal sumOfPerDay(List<SapInterestExpenseDto> interestExpenses) {
         return interestExpenses.stream()
                 .filter(x -> x.getDays() == 1)
                 .map(SapInterestExpenseDto::getInterestExpense)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private BigDecimal sumOfPerDay(List<SapInterestExpenseDto> interestExpenses) {
+    private BigDecimal sumOfPerMonth(List<SapInterestExpenseDto> interestExpenses) {
         return interestExpenses.stream()
                 .filter(x -> x.getDays() > 1)
                 .map(SapInterestExpenseDto::getInterestExpense)
@@ -129,7 +171,7 @@ public class InterestExpenseCalculationServiceImplv2 implements InterestExpenseC
                 .multiply(BigDecimal.valueOf(daysOfMonth))
                 .divide(BigDecimal.valueOf(DAYS_OF_YEAR), RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100));
-        return sumInterestMonth.setScale(2, RoundingMode.HALF_UP);
+        return sumInterestMonth;
     }
 
     private BigDecimal calculatePerDay(BigDecimal sumLiabilities, BigDecimal interestRate, int firstDayInMonth) {
@@ -138,7 +180,7 @@ public class InterestExpenseCalculationServiceImplv2 implements InterestExpenseC
                 .multiply(BigDecimal.valueOf(firstDayInMonth))
                 .divide(BigDecimal.valueOf(DAYS_OF_YEAR), RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100));
-        return sumOfInterestDay.setScale(2, RoundingMode.HALF_UP);
+        return sumOfInterestDay;
     }
 
 
