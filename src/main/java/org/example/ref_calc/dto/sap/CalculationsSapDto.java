@@ -17,4 +17,5 @@ public class CalculationsSapDto {
     private BigDecimal sumOfAmrs;
     private BigDecimal sumOfPerDay;
     private BigDecimal sumOfPerMonth;
+    private BigDecimal afpp;
 }
